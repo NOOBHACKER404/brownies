@@ -1,0 +1,206 @@
+<!DOCTYPE html><html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>บัญชีรายรับ-รายจ่ายบราวนี่</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    form, table {
+      width: 100%;
+      margin-top: 20px;
+    }
+    input, select {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+    }
+    button {
+      background-color: #2c3e50;
+      color: white;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #1a242f;
+    }
+    table {
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #ecf0f1;
+    }
+    .summary {
+      margin-top: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+    .back-btn {
+      margin-top: 20px;
+      text-align: center;
+    }
+    #chartContainer {
+      max-width: 400px;
+      margin: 30px auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>📒 บัญชีรายรับ-รายจ่าย บราวนี่</h1>  <form id="expenseForm">
+    <label>รายการ:</label>
+    <input type="text" id="item" required /><label>ประเภท:</label>
+<select id="type">
+  <option value="รายรับ">รายรับ</option>
+  <option value="รายจ่าย">รายจ่าย</option>
+</select>
+
+<label>หมวดหมู่:</label>
+<input type="text" id="category" placeholder="เช่น วัตถุดิบ, ค่าแรง" />
+
+<label>จำนวนเงิน (บาท):</label>
+<input type="number" id="amount" min="0" required />
+
+<button type="submit">เพิ่มรายการ</button>
+
+  </form>  <div class="summary" id="summary"></div>  <div id="chartContainer">
+    <canvas id="economyChart"></canvas>
+  </div>  <table>
+    <thead>
+      <tr>
+        <th>รายการ</th>
+        <th>ประเภท</th>
+        <th>หมวดหมู่</th>
+        <th>จำนวนเงิน</th>
+        <th>ลบ</th>
+      </tr>
+    </thead>
+    <tbody id="expenseTable"></tbody>
+  </table>  <div class="back-btn">
+    <a href="brownie_account.html" target="_blank">
+      <button>⬅ กลับไปหน้าขายบราวนี่</button>
+    </a>
+  </div>  <script>
+    const form = document.getElementById('expenseForm');
+    const table = document.getElementById('expenseTable');
+    const summary = document.getElementById('summary');
+    let chart;
+
+    function updateChart(income, expense, net) {
+      const ctx = document.getElementById('economyChart').getContext('2d');
+      if (chart) chart.destroy();
+      chart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['รายรับ', 'รายจ่าย', 'กำไรสุทธิ'],
+          datasets: [{
+            data: [income, expense, net],
+            backgroundColor: ['#2ecc71', '#e74c3c', '#3498db']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    function loadExpenses() {
+      const expenseData = JSON.parse(localStorage.getItem('brownieEconomy') || '[]');
+      const saleData = JSON.parse(localStorage.getItem('brownieSales') || '[]');
+      table.innerHTML = '';
+      let totalIncome = 0;
+      let totalExpense = 0;
+
+      // รายรับจาก brownieSales (เฉพาะที่จ่ายแล้วเท่านั้น)
+      let brownieTotal = 0;
+      saleData.forEach(sale => {
+        if (sale.status === 'จ่ายแล้ว') {
+          brownieTotal += sale.total;
+        }
+      });
+
+      if (brownieTotal > 0) {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>ยอดขายบราวนี่ (เฉพาะที่จ่ายแล้ว)</td>
+          <td>รายรับ</td>
+          <td>จาก brownie_account</td>
+          <td>${brownieTotal.toLocaleString()}฿</td>
+          <td>-</td>
+        `;
+        table.appendChild(row);
+        totalIncome += brownieTotal;
+      }
+
+      // รายการจาก economy
+      expenseData.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${entry.item}</td>
+          <td>${entry.type}</td>
+          <td>${entry.category}</td>
+          <td>${entry.amount.toLocaleString()}฿</td>
+          <td><button onclick="deleteEntry(${index})">ลบ</button></td>
+        `;
+        table.appendChild(row);
+
+        if (entry.type === 'รายรับ') totalIncome += entry.amount;
+        else totalExpense += entry.amount;
+      });
+
+      const net = totalIncome - totalExpense;
+      summary.innerHTML = `
+        <span style="color:green">รายรับ:</span> ${totalIncome.toLocaleString()}฿ |
+        <span style="color:red">รายจ่าย:</span> ${totalExpense.toLocaleString()}฿ |
+        <span style="color:blue">กำไรสุทธิ:</span> ${net.toLocaleString()}฿`;
+      updateChart(totalIncome, totalExpense, net);
+    }
+
+    function deleteEntry(index) {
+      const data = JSON.parse(localStorage.getItem('brownieEconomy') || '[]');
+      if (confirm("ลบรายการนี้หรือไม่?")) {
+        data.splice(index, 1);
+        localStorage.setItem('brownieEconomy', JSON.stringify(data));
+        loadExpenses();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const item = document.getElementById('item').value;
+      const type = document.getElementById('type').value;
+      const category = document.getElementById('category').value;
+      const amount = parseFloat(document.getElementById('amount').value);
+
+      const entry = { item, type, category, amount };
+      const data = JSON.parse(localStorage.getItem('brownieEconomy') || '[]');
+      data.push(entry);
+      localStorage.setItem('brownieEconomy', JSON.stringify(data));
+
+      form.reset();
+      loadExpenses();
+    });
+
+    window.onload = loadExpenses;
+  </script></body>
+</html>

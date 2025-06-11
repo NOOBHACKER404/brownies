@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Brownie Sales Tracker</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: brown;
+    }
+    form, table {
+      width: 100%;
+      margin-top: 20px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+    }
+    button {
+      background-color: brown;
+      color: white;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #8b4513;
+    }
+    table {
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+    th {
+      background-color: #f0e0d6;
+    }
+    .total {
+      margin-top: 20px;
+      font-weight: bold;
+    }
+    .delete-btn {
+      background-color: red;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background-color: darkred;
+    }
+  </style>
+</head>
+<body>
+  <h1>📋 Brownie Sales Tracker</h1>
+  
+  <form id="saleForm">
+    <label>ชื่อ:</label>
+    <input type="text" id="name" required />
+    
+    <label>ประเภท:</label>
+    <select id="role">
+      <option value="ลูกค้า">ลูกค้า</option>
+      <option value="ตัวแทน">ตัวแทน</option>
+    </select>
+
+    <label>จำนวนชิ้น:</label>
+    <input type="number" id="quantity" min="1" required />
+
+    <label>ราคาต่อชิ้น:</label>
+    <input type="number" id="price" min="0" required />
+
+    <label>สถานะ:</label>
+    <select id="status">
+      <option value="จ่ายแล้ว">จ่ายแล้ว</option>
+      <option value="ยังไม่จ่าย">ยังไม่จ่าย</option>
+      <option value="ฝากไว้">ฝากไว้</option>
+    </select>
+
+    <label>หมายเหตุ:</label>
+    <textarea id="note"></textarea>
+
+    <button type="submit">เพิ่มรายการ</button>
+  </form>
+
+  <div class="total" id="summary"></div>
+
+  <table id="salesTable">
+    <thead>
+      <tr>
+        <th>ชื่อ</th>
+        <th>ประเภท</th>
+        <th>ชิ้น</th>
+        <th>รวมเงิน</th>
+        <th>สถานะ</th>
+        <th>หมายเหตุ</th>
+        <th>ลบ</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById('saleForm');
+    const tableBody = document.querySelector('#salesTable tbody');
+    const summary = document.getElementById('summary');
+
+    function loadSales() {
+      const sales = JSON.parse(localStorage.getItem('brownieSales') || '[]');
+      tableBody.innerHTML = '';
+      let totalAll = 0;
+      let totalUnpaid = 0;
+
+      sales.forEach((sale, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${sale.name}</td>
+          <td>${sale.role}</td>
+          <td>${sale.quantity}</td>
+          <td>${sale.total}฿</td>
+          <td>${sale.status}</td>
+          <td>${sale.note}</td>
+          <td><button class="delete-btn" onclick="deleteSale(${index})">ลบ</button></td>
+        `;
+        tableBody.appendChild(row);
+
+        totalAll += sale.total;
+        if (sale.status === "ยังไม่จ่าย") {
+          totalUnpaid += sale.total;
+        }
+      });
+
+      summary.innerHTML = `💰 ยอดรวมทั้งหมด: ${totalAll}฿ | ❗ ยอดที่ยังไม่จ่าย: ${totalUnpaid}฿`;
+    }
+
+    function deleteSale(index) {
+      const sales = JSON.parse(localStorage.getItem('brownieSales') || '[]');
+      if (confirm("คุณแน่ใจหรือไม่ว่าจะลบรายการนี้?")) {
+        sales.splice(index, 1);
+        localStorage.setItem('brownieSales', JSON.stringify(sales));
+        loadSales();
+      }
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const name = document.getElementById('name').value;
+      const role = document.getElementById('role').value;
+      const quantity = parseInt(document.getElementById('quantity').value);
+      const price = parseInt(document.getElementById('price').value);
+      const status = document.getElementById('status').value;
+      const note = document.getElementById('note').value;
+      const total = quantity * price;
+
+      const sale = { name, role, quantity, price, total, status, note };
+      const sales = JSON.parse(localStorage.getItem('brownieSales') || '[]');
+      sales.push(sale);
+      localStorage.setItem('brownieSales', JSON.stringify(sales));
+
+      form.reset();
+      loadSales();
+    });
+
+    window.onload = loadSales;
+  </script>
+  <div style="text-align: center; margin-top: 30px;">
+  <a href="economy.html" target="_blank">
+    <button>📊 ดูบัญชีรายรับ-รายจ่ายทั้งหมด</button>
+  </a>
+</div>
+</body>
+</html>
